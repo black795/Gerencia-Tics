@@ -14,6 +14,7 @@ const deviceRoutes = require('./src/routes/devices')
 const settingsRoutes = require('./src/routes/settings')
 const assistantRoutes = require('./src/routes/assistant')
 const kitRoutes = require('./src/routes/kit')
+const devRoutes = require('./src/routes/dev')
 
 const { notFound, errorHandler } = require('./src/middleware/errorHandler')
 
@@ -39,6 +40,7 @@ app.use('/api/devices', deviceRoutes)
 app.use('/api/settings', settingsRoutes)
 app.use('/api/assistant', assistantRoutes)
 app.use('/api/kit', kitRoutes)
+app.use('/api/dev', devRoutes) // solo desarrollo · bloqueado en producción
 
 // ─── 404 y manejo global de errores (respuesta JSON consistente) ───
 app.use(notFound)
