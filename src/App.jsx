@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AuthProvider, useAuth } from './auth'
 import PhoneFrame from './components/PhoneFrame'
 import Onboarding from './screens/Onboarding'
 import Home from './screens/Home'
@@ -20,15 +21,35 @@ const SCREENS = {
   kit: Kit,
 }
 
-export default function App() {
-  const [screen, setScreen] = useState('onboarding')
-  const Current = SCREENS[screen] || Home
+function Shell() {
+  const { token } = useAuth()
+  // nav.params permite pasar datos entre pantallas (ej. el miembro elegido).
+  const [nav, setNav] = useState({ screen: 'home', params: {} })
+  const go = (screen, params = {}) => setNav({ screen, params })
 
+  // Sin sesión → siempre la pantalla de bienvenida / login.
+  if (!token) {
+    return (
+      <PhoneFrame>
+        <Onboarding go={go} />
+      </PhoneFrame>
+    )
+  }
+
+  const Current = SCREENS[nav.screen] || Home
+  return (
+    <PhoneFrame>
+      <Current go={go} params={nav.params} />
+    </PhoneFrame>
+  )
+}
+
+export default function App() {
   return (
     <div className="app-stage">
-      <PhoneFrame>
-        <Current go={setScreen} />
-      </PhoneFrame>
+      <AuthProvider>
+        <Shell />
+      </AuthProvider>
     </div>
   )
 }

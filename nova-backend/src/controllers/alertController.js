@@ -60,6 +60,7 @@ async function getActiveAlerts(req, res) {
       mensaje: a.mensaje,
       detectadoEn: a.detectadoEn,
       leida: a.leida,
+      miembroId: a.miembroId ? a.miembroId._id : null,
       miembro: a.miembroId
         ? { nombre: a.miembroId.nombre, apodo: a.miembroId.apodo }
         : null,
@@ -105,6 +106,7 @@ async function getAlertDetail(req, res) {
       titulo: alerta.titulo,
       mensaje: alerta.mensaje,
       detectadoEn: alerta.detectadoEn,
+      miembroId: alerta.miembroId ? alerta.miembroId._id : null,
       miembro: alerta.miembroId
         ? { nombre: alerta.miembroId.nombre, apodo: alerta.miembroId.apodo }
         : null,

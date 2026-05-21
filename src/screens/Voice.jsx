@@ -1,24 +1,47 @@
+import { useState, useEffect } from 'react'
 import StatusBar from '../components/StatusBar'
+import { useApi } from '../useApi'
+import { api } from '../api'
 
-const CHAT = [
-  { who: 'user', txt: '¿Cómo durmió la abuela anoche?' },
-  {
-    who: 'nova',
-    txt: 'Durmió algo inquieta. Se despertó dos veces entre las 2 y las 4 de la madrugada. Su saturación estuvo estable, pero el corazón latió un poco más rápido de lo normal. Vale la pena revisarla hoy.',
-  },
-  { who: 'user', txt: 'Se agitó en la noche. ¿Es grave?' },
-  {
-    who: 'nova',
-    txt: 'No parece grave. La agitación coincidió con una baja leve de temperatura en el cuarto. Para su edad y la altura, es esperable en la semana seca. La ponemos en ámbar y la observamos hoy.',
-  },
-  { who: 'user', txt: '¿Necesito llevarla al médico?' },
-  {
-    who: 'nova',
-    txt: 'Por ahora no es urgente. Si esta noche vuelve a agitarse o la saturación baja de 89%, sí te recomiendo llamar al médico. ¿Quieres que avise a la enfermera para que te llame mañana?',
-  },
-]
+export default function Voice({ go, params = {} }) {
+  // Si no llega un miembro por params, usamos el primero de la familia.
+  const miembros = useApi(params.miembroId ? null : '/family/members')
+  const miembroId = params.miembroId || miembros.data?.miembros?.[0]?._id
+  const conv = useApi(miembroId ? `/assistant/conversation/${miembroId}` : null, [miembroId])
+  const apodo = params.apodo || miembros.data?.miembros?.[0]?.apodo || ''
 
-export default function Voice({ go }) {
+  const [mensajes, setMensajes] = useState([])
+  const [texto, setTexto] = useState('')
+  const [enviando, setEnviando] = useState(false)
+
+  // Cargar el historial de conversación cuando llega del backend.
+  useEffect(() => {
+    if (conv.data) setMensajes(conv.data.mensajes || [])
+  }, [conv.data])
+
+  async function enviar(e) {
+    e.preventDefault()
+    const t = texto.trim()
+    if (!t || !miembroId || enviando) return
+    setTexto('')
+    setMensajes((m) => [...m, { rol: 'user', texto: t }])
+    setEnviando(true)
+    try {
+      const r = await api('/assistant/message', {
+        method: 'POST',
+        body: { miembroId, mensaje: t },
+      })
+      setMensajes((m) => [...m, { rol: 'nova', texto: r.respuesta }])
+    } catch (err) {
+      setMensajes((m) => [
+        ...m,
+        { rol: 'nova', texto: 'No pude responder ahora mismo: ' + err.message },
+      ])
+    } finally {
+      setEnviando(false)
+    }
+  }
+
   return (
     <>
       <StatusBar />
@@ -26,48 +49,104 @@ export default function Voice({ go }) {
         <button className="pheader-back" onClick={() => go('home')}>
           <i className="ti ti-arrow-left" />
         </button>
-        <span className="pheader-title">Asistente NOVA</span>
-        <button
+        <span className="pheader-title">
+          Asistente NOVA{apodo ? ` · ${apodo}` : ''}
+        </span>
+        <span
           className="pheader-action"
           style={{
-            fontSize: 10, background: 'var(--nova-teal-pale)', color: 'var(--nova-teal)',
-            padding: '4px 10px', borderRadius: 8, border: 'none',
+            fontSize: 10,
+            background: 'var(--nova-teal-pale)',
+            color: 'var(--nova-teal)',
+            padding: '4px 10px',
+            borderRadius: 8,
+            border: 'none',
           }}
         >
           Local
-        </button>
+        </span>
       </div>
 
       <div className="content" style={{ gap: 10 }}>
-        <div style={{
-          background: 'var(--nova-pale)', borderRadius: 14, padding: '11px 13px',
-          display: 'flex', alignItems: 'center', gap: 8,
-        }}>
+        <div
+          style={{
+            background: 'var(--nova-pale)',
+            borderRadius: 14,
+            padding: '11px 13px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
           <i className="ti ti-lock" style={{ fontSize: 16, color: 'var(--nova-mid)' }} />
           <div style={{ fontSize: 11, color: 'var(--nova-deep)', lineHeight: 1.4 }}>
-            Procesamiento en el dispositivo. La voz no sale del celular.
+            Procesamiento en el dispositivo. Tus conversaciones no salen del celular.
           </div>
         </div>
 
-        {CHAT.map((m, i) => (
-          <div className={'bubble ' + m.who} key={i}>
-            <div className="bubble-sender">{m.who === 'user' ? 'Tú' : 'NOVA'}</div>
-            {m.txt}
+        {mensajes.length === 0 && !conv.loading && (
+          <div
+            style={{
+              fontSize: 11,
+              color: 'var(--text-tertiary)',
+              textAlign: 'center',
+              padding: '20px 10px',
+            }}
+          >
+            Preguntá a NOVA sobre el sueño, la saturación o cómo está hoy tu familiar.
+          </div>
+        )}
+
+        {mensajes.map((m, i) => (
+          <div className={'bubble ' + m.rol} key={i}>
+            <div className="bubble-sender">{m.rol === 'user' ? 'Tú' : 'NOVA'}</div>
+            {m.texto}
           </div>
         ))}
+
+        {enviando && (
+          <div className="bubble nova">
+            <div className="bubble-sender">NOVA</div>
+            <span style={{ color: 'var(--text-tertiary)' }}>escribiendo…</span>
+          </div>
+        )}
       </div>
 
-      <div style={{
-        background: 'var(--card-bg)', borderTop: '0.5px solid var(--border)', padding: 14,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, flexShrink: 0,
-      }}>
-        <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
-          Mantén presionado para hablar
-        </div>
-        <div className="voice-ring-outer">
-          <div className="voice-ring-inner">🎙️</div>
-        </div>
-      </div>
+      <form
+        onSubmit={enviar}
+        style={{
+          background: 'var(--card-bg)',
+          borderTop: '0.5px solid var(--border)',
+          padding: 12,
+          display: 'flex',
+          gap: 8,
+          flexShrink: 0,
+        }}
+      >
+        <input
+          className="field"
+          placeholder="Escribe tu pregunta…"
+          value={texto}
+          onChange={(e) => setTexto(e.target.value)}
+        />
+        <button
+          type="submit"
+          disabled={enviando || !texto.trim()}
+          style={{
+            flexShrink: 0,
+            width: 44,
+            borderRadius: 12,
+            border: 'none',
+            background: 'var(--nova-mid)',
+            color: 'white',
+            fontSize: 16,
+            cursor: 'pointer',
+          }}
+          aria-label="Enviar"
+        >
+          <i className="ti ti-send" />
+        </button>
+      </form>
     </>
   )
 }

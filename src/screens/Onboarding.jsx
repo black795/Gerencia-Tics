@@ -1,4 +1,7 @@
+import { useState } from 'react'
 import StatusBar from '../components/StatusBar'
+import { api } from '../api'
+import { useAuth } from '../auth'
 
 const STEPS = [
   { n: 1, txt: 'Conecta lo que ya tienes', sub: 'Mi Band, Apple Watch, Garmin, Fitbit…' },
@@ -7,6 +10,31 @@ const STEPS = [
 ]
 
 export default function Onboarding({ go }) {
+  const { login } = useAuth()
+  const [email, setEmail] = useState('alan@nova.bo')
+  const [password, setPassword] = useState('nova1234')
+  const [error, setError] = useState(null)
+  const [cargando, setCargando] = useState(false)
+
+  async function entrar(e) {
+    e.preventDefault()
+    setCargando(true)
+    setError(null)
+    try {
+      const r = await api('/auth/login', { method: 'POST', body: { email, password } })
+      login(r.token, r.user)
+      go('home')
+    } catch (err) {
+      setError(
+        err.message === 'Credenciales inválidas'
+          ? 'Email o contraseña incorrectos'
+          : err.message,
+      )
+    } finally {
+      setCargando(false)
+    }
+  }
+
   return (
     <>
       <StatusBar />
@@ -37,10 +65,38 @@ export default function Onboarding({ go }) {
           ))}
         </div>
 
-        <div style={{ padding: '16px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <button className="btn-primary" onClick={() => go('home')}>Comenzar gratis</button>
-          <button className="btn-secondary" onClick={() => go('home')}>Ya tengo cuenta</button>
-        </div>
+        <form
+          onSubmit={entrar}
+          style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}
+        >
+          <input
+            className="field"
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="username"
+          />
+          <input
+            className="field"
+            type="password"
+            placeholder="Contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+          />
+          {error && (
+            <div style={{ fontSize: 11, color: 'var(--red)', textAlign: 'center' }}>
+              {error}
+            </div>
+          )}
+          <button className="btn-primary" type="submit" disabled={cargando}>
+            {cargando ? 'Entrando…' : 'Iniciar sesión'}
+          </button>
+          <div style={{ fontSize: 10, color: 'var(--text-tertiary)', textAlign: 'center' }}>
+            Cuenta de demo: alan@nova.bo · nova1234
+          </div>
+        </form>
       </div>
     </>
   )

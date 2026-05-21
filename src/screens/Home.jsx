@@ -1,22 +1,12 @@
 import StatusBar from '../components/StatusBar'
 import BottomNav from '../components/BottomNav'
-
-const FAMILY = [
-  {
-    cls: 'v', tag: 'Verde', name: 'Papá · 61 años',
-    msg: 'Saturación 94% · estable para la altura', to: 'vitals',
-  },
-  {
-    cls: 'a', tag: 'Ámbar · observar', name: 'Abuela · 74 años',
-    msg: '3 noches con sueño irregular. La revisaremos juntos.', to: 'history',
-  },
-  {
-    cls: 'v', tag: 'Verde', name: 'Sofía · 8 años',
-    msg: 'Durmió estable · frecuencia normal', to: 'vitals',
-  },
-]
+import { useApi } from '../useApi'
+import { Loading, ErrorBox } from '../components/Feedback'
+import { clsEstado, tagEstado, ringClass, ringEmoji, labelEstado } from '../ui'
 
 export default function Home({ go }) {
+  const { loading, error, data, reload } = useApi('/family/dashboard')
+
   return (
     <>
       <StatusBar />
@@ -27,56 +17,78 @@ export default function Home({ go }) {
           <div className="brand-tag">biomedical iot</div>
           <button className="brand-bell" onClick={() => go('alert')} aria-label="Alertas">
             <i className="ti ti-bell" />
-            <span className="bell-badge" />
+            {data && data.estadoGeneral !== 'verde' && <span className="bell-badge" />}
           </button>
         </div>
-        <div className="header-greeting">Buenos días, familia Torrico 👋</div>
+        <div className="header-greeting">{data ? `${data.saludo} 👋` : 'Hola 👋'}</div>
       </div>
 
       <div className="content">
-        <div className="status-ring-wrap">
-          <div className="status-ring">
-            <div className="ring-emoji">🫁</div>
-            <div className="ring-label v">Todo bien</div>
-          </div>
-          <div className="ring-msg">
-            Todos los signos vitales están estables. No hay nada que observar esta mañana.
-          </div>
-        </div>
+        {loading && <Loading />}
+        {error && <ErrorBox mensaje={error} onRetry={reload} />}
 
-        <div className="sec">Tu familia</div>
-
-        {FAMILY.map((f, i) => (
-          <div className={'fcard ' + f.cls} key={i} onClick={() => go(f.to)}>
-            <div className="fcard-dot">
-              <i className="ti ti-user" style={{ fontSize: 15, color: 'white' }} />
+        {data && (
+          <>
+            <div className="status-ring-wrap">
+              <div className={'status-ring ' + ringClass(data.estadoGeneral)}>
+                <div className="ring-emoji">{ringEmoji(data.estadoGeneral)}</div>
+                <div className={'ring-label ' + clsEstado(data.estadoGeneral)}>
+                  {labelEstado(data.estadoGeneral)}
+                </div>
+              </div>
+              <div className="ring-msg">{data.mensajeGeneral}</div>
             </div>
-            <div>
-              <div className="fcard-tag">{f.tag}</div>
-              <div className="fcard-name">{f.name}</div>
-              <div className="fcard-msg">{f.msg}</div>
-            </div>
-          </div>
-        ))}
 
-        <div className="acard warn tap" onClick={() => go('voice')}>
-          <div className="acard-head">
-            <i className="ti ti-bell" style={{ fontSize: 13 }} /> Aviso de enfermera
-          </div>
-          <div className="acard-body">
-            ¿Revisamos juntos el informe de la abuela? Puede responder cuando quiera.
-          </div>
-        </div>
+            <div className="sec">Tu familia</div>
 
-        <div className="acard">
-          <div className="acard-head">
-            <i className="ti ti-mountain" style={{ fontSize: 13 }} /> Contexto andino
-          </div>
-          <div className="acard-body">
-            Semana seca en Cochabamba. La saturación puede bajar 1–2 puntos. Es completamente normal.
-          </div>
-        </div>
-        <div style={{ height: 6 }} />
+            {data.miembros.map((m) => (
+              <div
+                className={'fcard ' + clsEstado(m.estado)}
+                key={m.id}
+                onClick={() => go('vitals', { miembroId: m.id, apodo: m.apodo })}
+              >
+                <div className="fcard-dot">
+                  <i className="ti ti-user" style={{ fontSize: 15, color: 'white' }} />
+                </div>
+                <div>
+                  <div className="fcard-tag">{tagEstado(m.estado)}</div>
+                  <div className="fcard-name">
+                    {m.apodo} · {m.edad} años
+                  </div>
+                  <div className="fcard-msg">{m.mensajeEstado}</div>
+                </div>
+              </div>
+            ))}
+
+            {data.avisos.map((a, i) =>
+              a.tipo === 'enfermera' ? (
+                <div
+                  className="acard warn tap"
+                  key={i}
+                  onClick={() => {
+                    // El aviso es sobre el familiar a observar: abrimos el chat
+                    // del asistente apuntando a ese miembro, no al primero.
+                    const obs = data.miembros.find((m) => m.estado !== 'verde')
+                    go('voice', obs ? { miembroId: obs.id, apodo: obs.apodo } : {})
+                  }}
+                >
+                  <div className="acard-head">
+                    <i className="ti ti-bell" style={{ fontSize: 13 }} /> {a.titulo}
+                  </div>
+                  <div className="acard-body">{a.mensaje}</div>
+                </div>
+              ) : (
+                <div className="acard" key={i}>
+                  <div className="acard-head">
+                    <i className="ti ti-mountain" style={{ fontSize: 13 }} /> {a.titulo}
+                  </div>
+                  <div className="acard-body">{a.mensaje}</div>
+                </div>
+              ),
+            )}
+            <div style={{ height: 6 }} />
+          </>
+        )}
       </div>
 
       <BottomNav active="home" go={go} />

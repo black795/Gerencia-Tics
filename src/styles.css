@@ -309,6 +309,21 @@ body {
 .badge-watch { background: var(--amber-bg);    color: var(--amber); }
 .badge-alt   { background: var(--nova-pale);   color: var(--nova-deep); }
 .badge-info  { background: var(--nova-teal-pale); color: var(--nova-teal); }
+.badge-danger{ background: var(--red-bg);      color: var(--red); }
+
+/* Campos de formulario (login) */
+.field {
+  width: 100%;
+  font-size: 13px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  border: 0.5px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  outline: none;
+  box-sizing: border-box;
+}
+.field:focus { border-color: var(--nova-mid); }
 
 /* ─── BOTTOM NAV ─── */
 .bnav {
